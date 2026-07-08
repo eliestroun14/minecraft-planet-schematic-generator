@@ -91,8 +91,13 @@ function blockForBand(band, material, category, x, y, z, spiceSeed) {
   const layers = material.stoneLayers;
   if (band === -2) return CORE_ROCK[category] || DEFAULT_STONE;
   if (band === -1) return (layers && layers[0]) || DEFAULT_BAND_ROCK[0]; // inner filler
+  // Checked BEFORE stoneLayers[band]: on a habitable planet the walkable
+  // surface always comes from grass/dirt (below), even for a template that
+  // also specifies a band-3 stoneLayers entry (e.g. "stem") — otherwise the
+  // literal rock band wins, decorateSurface never finds a grass-family top
+  // block to plant on, and the whole planet ends up bare.
+  if (band === 3 && category === 'habitable') return null;
   if (layers && layers[band]) return layers[band]; // template-themed band: no spice, stays coherent
-  if (band === 3 && category === 'habitable') return null; // handled by surface pass instead
   const spiceOptions = BAND_SPICE[band];
   if (spiceOptions) {
     const n = valueNoise3D(x * 0.12, y * 0.12, z * 0.12, spiceSeed + band * 97);
@@ -123,48 +128,60 @@ function scatterOreVeinsInRange(world, rng, rMin, rMax, oreId, count) {
 }
 
 // `density` (as authored in a template, e.g. 1-3) veins-per-density-unit of
-// `oreId` PER solid rock band, including the outermost surface shell.
+// `oreId` PER solid rock band. Deliberately stops at rDirtStart — buried
+// veins reaching into the outer shell would sit flush with the ground once
+// exposed, undermining exposeSurfaceOre's whole point of making surface ore
+// visibly protrude as raised outcrops instead.
 function scatterOreVeins(world, rng, radius, oreId, density) {
   const count = density * ORE_VEINS_PER_DENSITY_UNIT;
   const { rDirtStart, rStoneStart, rDeepOuterStart, rDeepInnerStart } = bandBoundaries(radius);
   scatterOreVeinsInRange(world, rng, rDeepInnerStart + 2, rDeepOuterStart, oreId, count);
   scatterOreVeinsInRange(world, rng, rDeepOuterStart, rStoneStart, oreId, count);
   scatterOreVeinsInRange(world, rng, rStoneStart, rDirtStart, oreId, count);
-  scatterOreVeinsInRange(world, rng, rDirtStart, radius, oreId, Math.round(count * 1.5));
 }
 
 // On a rocky planet there's no vegetation to give the walkable top surface
 // visual interest, so that interest has to come from ore veins actually
 // breaking the surface — "aspérités" the player can see and mine without
-// digging. Picks a handful of surface points and grows a diffuse ~10-block
-// clump of ore around each (a short random walk, not a single isolated
-// block), which reads as a vein poking out rather than salt-and-pepper
-// noise. Only ever touches the true topmost block of a column (same trick
-// decorateSurface uses for plants), so it's always where the player is
-// actually standing/looking, and always properly supported.
+// digging. Rather than just swapping the existing topmost block for ore
+// (flush with the ground, easy to miss), this builds a short ridge of small
+// raised mounds — each mound ADDS 1-2 ore blocks on top of the existing
+// surface instead of replacing it, so the vein visibly protrudes above the
+// surrounding terrain like a real outcrop. Every mound still anchors off
+// the true topmost block of its column (same trick decorateSurface uses for
+// plants), so it's always properly supported and where the player actually
+// walks.
 function exposeSurfaceOre(world, rng, radius, ores, density) {
   if (!ores || !ores.length) return;
-  const clusterCount = Math.round(2 + density * 2.5);
+  const ridgeCount = Math.round(2 + density * 2.5);
   let placed = 0;
   let attempts = 0;
-  while (placed < clusterCount && attempts < clusterCount * 20) {
+  while (placed < ridgeCount && attempts < ridgeCount * 20) {
     attempts++;
     const ang = rng() * Math.PI * 2;
     const r = Math.sqrt(rng()) * radius * 0.9;
-    const cx = Math.round(Math.cos(ang) * r);
-    const cz = Math.round(Math.sin(ang) * r);
-    const topY = world.topSurfaceY(cx, cz, radius + 6);
-    if (topY === null) continue;
+    let x = Math.round(Math.cos(ang) * r);
+    let z = Math.round(Math.sin(ang) * r);
+    if (world.topSurfaceY(x, z, radius + 6) === null) continue;
     placed++;
+
     const oreId = pick(rng, ores);
-    const clumpSize = 7 + Math.floor(rng() * 6);
-    let x = cx, y = topY, z = cz;
-    for (let i = 0; i < clumpSize; i++) {
-      const groundY = world.topSurfaceY(x, z, y + 3);
-      if (groundY !== null && world.get(x, groundY, z) !== 'minecraft:air') world.set(x, groundY, z, oreId);
+    const mounds = 4 + Math.floor(rng() * 4); // elongated ridge, not one lump
+    for (let m = 0; m < mounds; m++) {
+      const mR = 1 + Math.floor(rng() * 2); // 1-2 block footprint radius
+      const mH = 1 + Math.floor(rng() * 2); // 1-2 blocks of extra height
+      for (let dx = -mR; dx <= mR; dx++) {
+        for (let dz = -mR; dz <= mR; dz++) {
+          if (dx * dx + dz * dz > mR * mR) continue;
+          if (rng() < 0.25) continue; // ragged edge instead of a perfect disc
+          const bx = x + dx, bz = z + dz;
+          const topY = world.topSurfaceY(bx, bz, radius + 6);
+          if (topY === null) continue;
+          for (let h = 0; h <= mH; h++) world.set(bx, topY + h, bz, oreId);
+        }
+      }
       x += Math.floor(rng() * 3) - 1;
       z += Math.floor(rng() * 3) - 1;
-      y = groundY === null ? y : groundY;
     }
   }
 }
