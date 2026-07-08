@@ -28,7 +28,19 @@ const BAND_SPICE_CHANCE = 0.16;
 // giving planets an actual "start from the core" layer instead of the
 // deep-inner band simply continuing in forever.
 const CORE_FRACTION = 0.22;
-const CORE_ROCK = { rocky: 'minecraft:bedrock', habitable: 'minecraft:deepslate' };
+const CORE_ROCK = { rocky: 'minecraft:bedrock', habitable: 'minecraft:deepslate', ring: 'minecraft:bedrock' };
+
+// Ring planets: a rocky-style core body shrunk to 75% of the nominal radius,
+// orbited by a separate ring structure. RING_GAP/WIDTH/THICKNESS are offsets
+// from the core's own (already-shrunk) radius, not the nominal one.
+const RING_CORE_FRACTION = 0.75;
+const RING_GAP = 10;
+const RING_WIDTH = 20;
+const RING_THICKNESS = 4;
+const RING_ORE_CHANCE = 0.07;
+// Fraction of candidate ring positions that are actually solid — a fully
+// filled disc reads as a slab, not a ring of countless rock/ice fragments.
+const RING_POROSITY = 0.4;
 // Real shipped planets run ~2% ore-to-solid-block density; this multiplier
 // tunes oreDensityPerBand (a small template-authored int like 1-3) up to
 // something in that neighborhood without changing the config schema.
@@ -240,6 +252,58 @@ function carveRiver(world, rng, radius, liquidId) {
   }
 }
 
+function cross(a, b) {
+  return { x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x };
+}
+function normalize(a) {
+  const len = Math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z) || 1;
+  return { x: a.x / len, y: a.y / len, z: a.z / len };
+}
+// Uniformly random point on the unit sphere — used as the ring plane's
+// normal vector. n=(0,1,0) gives a flat/equatorial ring (parallel to the
+// "ground"); n=(1,0,0) or (0,0,1) gives a ring standing on edge, perpendicular
+// to the ground; anything else is a tilted/oblique ring ("de biais") — one
+// formula covers every case the ring's orientation is supposed to vary over.
+function randomUnitVector(rng) {
+  const z = rng() * 2 - 1;
+  const theta = rng() * Math.PI * 2;
+  const r = Math.sqrt(1 - z * z);
+  return { x: r * Math.cos(theta), y: r * Math.sin(theta), z };
+}
+
+// Builds a ring orbiting the core at [coreRadius+RING_GAP, +RING_GAP+WIDTH],
+// in an arbitrary plane (tilt), out of two alternating block types plus a
+// scattered ore. Walks the ring in its own polar coordinates (angle/radius/
+// height-off-plane) rather than a bounding-cube voxel loop, since the actual
+// ring shell is a tiny fraction of the cube that would contain it.
+function generateRing(world, rng, coreRadius, ringBlocks, ringOre, seed, tilt) {
+  const blocks = ringBlocks && ringBlocks.length >= 2 ? ringBlocks : ['minecraft:stone', 'minecraft:cobblestone'];
+  const ore = ringOre || 'minecraft:iron_ore';
+  const innerR = coreRadius + RING_GAP;
+  const outerR = innerR + RING_WIDTH;
+  const normal = tilt || randomUnitVector(rng);
+  const arbitrary = Math.abs(normal.y) < 0.9 ? { x: 0, y: 1, z: 0 } : { x: 1, y: 0, z: 0 };
+  const u = normalize(cross(normal, arbitrary));
+  const v = cross(normal, u); // unit length: normal and u are orthonormal
+
+  const angleSteps = Math.max(64, Math.round(outerR * 2 * Math.PI));
+  for (let ai = 0; ai < angleSteps; ai++) {
+    const theta = (ai / angleSteps) * Math.PI * 2;
+    const cosT = Math.cos(theta), sinT = Math.sin(theta);
+    for (let r = innerR; r <= outerR; r += 1) {
+      for (let h = -RING_THICKNESS / 2; h <= RING_THICKNESS / 2; h += 1) {
+        const x = Math.round(r * cosT * u.x + r * sinT * v.x + h * normal.x);
+        const y = Math.round(r * cosT * u.y + r * sinT * v.y + h * normal.y);
+        const z = Math.round(r * cosT * u.z + r * sinT * v.z + h * normal.z);
+        const n = valueNoise3D(x * 0.1, y * 0.1, z * 0.1, seed);
+        if (n < RING_POROSITY) continue;
+        const blockId = rng() < RING_ORE_CHANCE ? ore : (rng() < 0.5 ? blocks[0] : blocks[1]);
+        world.set(x, y, z, blockId);
+      }
+    }
+  }
+}
+
 function scatterLiquidPockets(world, rng, radius, liquidId, count = 3) {
   const rMin = radius - DIRT_SHELL - STONE_LAYER;
   const rMax = radius - DIRT_SHELL - 3;
@@ -373,7 +437,8 @@ function placeBoundsMarkers(world) {
 }
 
 // material shape: { category, stoneLayers?, dirt?, grass?, grassAlt?, woods?,
-// flower?, herb?, liquid?, ores?, oreDensityPerBand? } — see README.md.
+// flower?, herb?, liquid?, ores?, oreDensityPerBand?, ringBlocks?, ringOre?,
+// ringTilt? } — see README.md.
 // fallbackLiquids: blocks/vanilla.json's `liquid` list, used for the
 // river/underground pockets when a template doesn't specify its own liquid.
 function generatePlanet({ category, material, radius = 90, seed = 1, spawnerCount, fallbackLiquids }) {
@@ -382,56 +447,70 @@ function generatePlanet({ category, material, radius = 90, seed = 1, spawnerCoun
   const noiseSeed = seed ^ 0x9e3779b9;
   const world = new VoxelWorld();
 
+  // Ring planets: everything about the core body (bands, caves, ore,
+  // river/pockets) is generated exactly like a rocky planet, just shrunk —
+  // the ring itself is a separate feature added on top afterward.
+  const isRockLike = category === 'rocky' || category === 'ring';
+  // Must stay an integer: a fractional radius (e.g. 90*0.75=67.5) shifts the
+  // whole core generation loop onto a half-integer coordinate grid, which
+  // then silently fails to line up with the ring's integer grid (and isn't
+  // a valid Minecraft block position either way).
+  const coreRadius = category === 'ring' ? Math.round(radius * RING_CORE_FRACTION) : radius;
+
   const grass = material.grass || DEFAULT_GRASS;
   const grassAlt = material.grassAlt || grass;
   const dirt = material.dirt || DEFAULT_DIRT;
 
-  const spikeRadius = radius + SPIKE_AMPLITUDE;
+  const spikeRadius = coreRadius + SPIKE_AMPLITUDE;
   for (let x = -spikeRadius; x <= spikeRadius; x++) {
     for (let y = -spikeRadius; y <= spikeRadius; y++) {
       for (let z = -spikeRadius; z <= spikeRadius; z++) {
         const rRaw = Math.sqrt(x * x + y * y + z * z);
         if (rRaw > spikeRadius) continue;
-        const disp = category === 'rocky' ? surfaceDisplacement(x, y, z, noiseSeed) : 0;
+        const disp = isRockLike ? surfaceDisplacement(x, y, z, noiseSeed) : 0;
         const r = rRaw - disp; // positive noise pushes material outward
-        if (r > radius) continue;
-        const band = bandAt(r, radius);
-        let blockId = blockForBand(band, material, category, x, y, z, noiseSeed);
+        if (r > coreRadius) continue;
+        const band = bandAt(r, coreRadius);
+        let blockId = blockForBand(band, material, category === 'ring' ? 'rocky' : category, x, y, z, noiseSeed);
         if (blockId === null) {
           // outermost shell of a habitable planet with no custom stoneLayers:
           // grass on the very surface, a thin dirt band just beneath it.
-          blockId = r >= radius - 1 ? (rng() < 0.5 ? grass : grassAlt) : dirt;
+          blockId = r >= coreRadius - 1 ? (rng() < 0.5 ? grass : grassAlt) : dirt;
         }
         world.set(x, y, z, blockId);
       }
     }
   }
 
-  carveCaves(world, radius, rng, noiseSeed);
+  carveCaves(world, coreRadius, rng, noiseSeed);
 
-  // Ore is a rocky-planet feature only — habitable planets get their visual
-  // interest from vegetation instead (a scattering of exposed ore across a
-  // grassy planet reads as noise, not a deliberate resource to mine).
-  if (category === 'rocky') {
+  // Ore is a rocky/ring-planet feature only — habitable planets get their
+  // visual interest from vegetation instead (a scattering of exposed ore
+  // across a grassy planet reads as noise, not a deliberate resource).
+  if (isRockLike) {
     const ores = material.ores || [];
     const density = material.oreDensityPerBand || 2;
-    for (const oreId of ores) scatterOreVeins(world, rng, radius, oreId, density);
-    exposeSurfaceOre(world, rng, radius, ores, density);
+    for (const oreId of ores) scatterOreVeins(world, rng, coreRadius, oreId, density);
+    exposeSurfaceOre(world, rng, coreRadius, ores, density);
   }
 
-  // Every planet gets a river and a couple of underground pockets — using
-  // the template's own liquid if it specified one, otherwise picking from
-  // the shared block bank so this doesn't depend on every template
-  // explicitly opting in.
+  // Every planet gets a river and a couple of underground pockets on its
+  // core body — using the template's own liquid if it specified one,
+  // otherwise picking from the shared block bank so this doesn't depend on
+  // every template explicitly opting in.
   const liquidPool = fallbackLiquids && fallbackLiquids.length ? fallbackLiquids : ['minecraft:water'];
   const liquid = material.liquid || pick(rng, liquidPool);
-  carveRiver(world, rng, radius, liquid);
-  scatterLiquidPockets(world, rng, radius, liquid, 1 + Math.floor(rng() * 2));
+  carveRiver(world, rng, coreRadius, liquid);
+  scatterLiquidPockets(world, rng, coreRadius, liquid, 1 + Math.floor(rng() * 2));
 
   let spawners = [];
   if (category === 'habitable') {
-    decorateSurface(world, rng, radius, material);
-    spawners = placePassiveMobSpawners(world, rng, radius, spawnerCount || (3 + Math.floor(rng() * 3)));
+    decorateSurface(world, rng, coreRadius, material);
+    spawners = placePassiveMobSpawners(world, rng, coreRadius, spawnerCount || (3 + Math.floor(rng() * 3)));
+  }
+
+  if (category === 'ring') {
+    generateRing(world, rng, coreRadius, material.ringBlocks, material.ringOre, noiseSeed, material.ringTilt);
   }
 
   placeBoundsMarkers(world);

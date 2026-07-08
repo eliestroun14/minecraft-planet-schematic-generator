@@ -113,8 +113,8 @@ function main() {
   if (cmd === 'template') return cmdTemplate(args);
   if (cmd === 'random') return cmdRandom(args);
   console.error('Usage:');
-  console.error('  node generate.js template --category <rocky|habitable> --template <name> [--seed N] [--out path] [--use-modded-blocks true|false]');
-  console.error('  node generate.js random --category <rocky|habitable> [--seed N] [--out path] [--use-modded-blocks true|false]');
+  console.error('  node generate.js template --category <rocky|habitable|ring> --template <name> [--seed N] [--out path] [--use-modded-blocks true|false]');
+  console.error('  node generate.js random --category <rocky|habitable|ring> [--seed N] [--out path] [--use-modded-blocks true|false]');
   process.exit(1);
 }
 

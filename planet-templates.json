@@ -200,6 +200,35 @@
       ],
       "randomCount": 6,
       "randomSeed": 5001
+    },
+    "ring": {
+      "scoreCategory": 3,
+      "hasTrees": false,
+      "_comment": "Core body uses the same fields/semantics as rocky. ringBlocks: exactly 2 block ids alternated through the ring. ringOre: 1 ore mixed in. ringTilt: {x,y,z} unit vector normal to the ring's plane — omit/null for a random tilt each generation; (0,1,0) is flat/equatorial, (1,0,0) or (0,0,1) stands the ring on edge perpendicular to the ground.",
+      "templates": [
+        {
+          "name": "asteroid",
+          "stoneLayers": null,
+          "liquid": null,
+          "ores": ["minecraft:iron_ore", "minecraft:coal_ore", "minecraft:gold_ore"],
+          "oreDensityPerBand": 2,
+          "ringBlocks": ["minecraft:cobblestone", "minecraft:gravel"],
+          "ringOre": "minecraft:iron_ore",
+          "ringTilt": null
+        },
+        {
+          "name": "ice",
+          "stoneLayers": ["minecraft:packed_ice", "minecraft:blue_ice", "minecraft:packed_ice", "minecraft:snow_block"],
+          "liquid": "minecraft:water",
+          "ores": ["minecraft:diamond_ore", "minecraft:lapis_ore"],
+          "oreDensityPerBand": 1,
+          "ringBlocks": ["minecraft:packed_ice", "minecraft:snow_block"],
+          "ringOre": "minecraft:diamond_ore",
+          "ringTilt": { "x": 0, "y": 1, "z": 0 }
+        }
+      ],
+      "randomCount": 4,
+      "randomSeed": 7001
     }
   }
 }

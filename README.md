@@ -2,8 +2,9 @@
 
 A config-driven generator that turns JSON block/template definitions into
 Minecraft **Sponge Schematic (`.schem`)** files — large procedural "planet"
-spheres (rocky/barren or habitable/vegetated), ready to paste with WorldEdit
-or convert into a native structure for a jigsaw-based world generator (see
+spheres in three flavors (`rocky` barren, `habitable` vegetated, `ring` a
+shrunk core orbited by a ring), ready to paste with WorldEdit or convert into
+a native structure for a jigsaw-based world generator (see
 [minecraft-planet-world-generator](https://github.com/eliestroun14/minecraft-planet-world-generator),
 the datapack this tool feeds).
 
@@ -32,8 +33,10 @@ planet-templates.json  hand-authored planet presets (rocky.vanilla,
 interpreter/
   sphere-generator.js  the core algorithm — a plain distance-from-center
                         voxel loop assigning concentric shell bands, ore
-                        veins, noise-carved caves, and (for habitable
-                        planets) surface decoration + passive-mob spawners
+                        veins, noise-carved caves, a river + underground
+                        pockets, (habitable) surface decoration + passive-mob
+                        spawners, and (ring) an orbiting ring in an
+                        arbitrary/random plane around a shrunk core
   world.js             sparse voxel grid (Map<"x,y,z", blockId>)
   noise.js              tiny deterministic 3D value-noise field for caves
   random-material.js    fully-random material rolls (used by `random`)
@@ -69,7 +72,8 @@ Every run writes into `outputs/` (created automatically, gitignored) unless
 you pass an explicit `--out path`.
 
 Available categories/templates: `rocky` (vanilla, dimension, modded,
-volcanic), `habitable` (stem, cherry, swamp, overworld). List them with:
+volcanic), `habitable` (stem, cherry, swamp, overworld), `ring` (asteroid,
+ice). List them with:
 
 ```
 node -e "console.log(require('./planet-templates.json').categories)"
@@ -99,6 +103,24 @@ Currently `blocks/modded.json` covers **Mekanism** and **Immersive
 Engineering** ores (the two mods the original planet set was built around).
 Adding another mod's blocks is just adding a new top-level key.
 
+## Ring planets
+
+`ring` is a third planet category: a rocky-style core body shrunk to 75% of
+the nominal radius (same bands/ore/caves/river as `rocky`, just smaller),
+orbited by a separate ring made of 2 alternating block types plus 1 ore
+mixed through it. The ring's plane can be:
+
+- flat/equatorial (`ringTilt: {"x":0,"y":1,"z":0}`) — a classic Saturn-style
+  ring, parallel to the "ground"
+- standing on edge (`ringTilt: {"x":1,"y":0,"z":0}` or `{"x":0,"y":0,"z":1}`)
+  — perpendicular to the ground, like a halo through the poles
+- anything in between (any other unit vector) — a tilted/oblique ring
+- omitted/`null` — a fresh random tilt every generation (this is what
+  `random` generation always does)
+
+The ring itself isn't a solid disc — it's noise-carved porous (rock/ice
+fragments, not a slab) so it doesn't read as a flat wall.
+
 ## Contributing new blocks or templates
 
 - **New block for an existing category**: add its id to
@@ -107,8 +129,9 @@ Adding another mod's blocks is just adding a new top-level key.
 - **New planet preset**: add an entry to the right category's `templates`
   array in `planet-templates.json`. See existing entries for the shape —
   `stoneLayers` (4 bands, innermost to outermost), `ores` +
-  `oreDensityPerBand`, and for `habitable` also `dirt`/`grass`/`grassAlt`,
-  `wood` (`{log, leaves}`), `flower`, `herb`, `liquid`.
+  `oreDensityPerBand`, for `habitable` also `dirt`/`grass`/`grassAlt`,
+  `wood` (`{log, leaves}`), `flower`, `herb`, `liquid`, and for `ring` also
+  `ringBlocks` (exactly 2 ids), `ringOre`, `ringTilt`.
 
 ## License
 

@@ -34,6 +34,21 @@ function buildRandomMaterial(category, bank, rng) {
     };
   }
 
+  if (category === 'ring') {
+    return {
+      category,
+      stoneLayers: rng() < 0.6 ? stoneLayers : null,
+      liquid: rng() < 0.4 ? pick(rng, bank.liquid) : null,
+      ores: pickN(rng, bank.ore, 3 + Math.floor(rng() * 3)), // core ores, 3-5
+      oreDensityPerBand: 1 + Math.floor(rng() * 2),
+      // 2 random block types for the ring itself, plus 1 ore mixed through it —
+      // drawn from stone+accentStone so it reads as rock/debris, not foliage.
+      ringBlocks: pickN(rng, bank.stone.concat(bank.accentStone), 2),
+      ringOre: pick(rng, bank.ore),
+      ringTilt: null, // sphere-generator picks a random plane when unset
+    };
+  }
+
   const useCustomStone = rng() < 0.6;
   const useCustomGround = rng() < 0.6;
   return {
