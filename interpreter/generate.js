@@ -88,8 +88,9 @@ function cmdTemplate(args) {
 
   const seed = args.seed !== undefined ? parseInt(args.seed, 10) : Date.now() & 0xffffffff;
   const outPath = resolveOutPath(args, `${args.category}-${args.template}.schem`);
+  const fallbackLiquids = loadBlockBank(useModdedBlocks).liquid;
   const t0 = Date.now();
-  const { world } = generatePlanet({ category: args.category, material: { ...material, category: args.category }, radius: args.radius ? parseInt(args.radius, 10) : 90, seed });
+  const { world } = generatePlanet({ category: args.category, material: { ...material, category: args.category }, radius: args.radius ? parseInt(args.radius, 10) : 90, seed, fallbackLiquids });
   const info = writeSchematic(world, outPath);
   console.log(`Wrote ${outPath}: ${info.width}x${info.height}x${info.length}, ${info.paletteSize} block types, ${Date.now() - t0}ms.`);
 }
@@ -101,7 +102,7 @@ function cmdRandom(args) {
   const material = buildRandomMaterial(args.category, bank, mulberry32(seed));
   const outPath = resolveOutPath(args, `${args.category}-random-${seed}.schem`);
   const t0 = Date.now();
-  const { world } = generatePlanet({ category: args.category, material, radius: args.radius ? parseInt(args.radius, 10) : 90, seed: seed ^ 0x9e3779b9 });
+  const { world } = generatePlanet({ category: args.category, material, radius: args.radius ? parseInt(args.radius, 10) : 90, seed: seed ^ 0x9e3779b9, fallbackLiquids: bank.liquid });
   const info = writeSchematic(world, outPath);
   console.log(`Wrote ${outPath}: ${info.width}x${info.height}x${info.length}, ${info.paletteSize} block types, ${Date.now() - t0}ms.`);
 }

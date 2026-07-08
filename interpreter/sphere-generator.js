@@ -11,6 +11,24 @@ const DEFAULT_GRASS = 'minecraft:grass_block';
 // "andesite inner / diorite-accent outer" banding real rocky planets in the
 // live datapack actually use, rather than flat stone everywhere.
 const DEFAULT_BAND_ROCK = ['minecraft:andesite', 'minecraft:diorite', DEFAULT_STONE, DEFAULT_STONE];
+// Secondary "spice" materials mixed into each default (non-templated) band
+// via noise-based patches, purely for visual variety — real shipped planets
+// have noticeably more block diversity per band than a flat single material.
+// Only applied where a template hasn't specified its own themed stoneLayers,
+// so a deliberately-themed template (nether "stem", volcanic, etc) stays
+// visually coherent.
+const BAND_SPICE = {
+  0: ['minecraft:granite'],
+  1: ['minecraft:granite', 'minecraft:tuff'],
+  2: ['minecraft:gravel', 'minecraft:tuff'],
+  3: ['minecraft:gravel', 'minecraft:sandstone'],
+};
+const BAND_SPICE_CHANCE = 0.16;
+// Innermost core: a small solid center distinct from the deep-rock band,
+// giving planets an actual "start from the core" layer instead of the
+// deep-inner band simply continuing in forever.
+const CORE_FRACTION = 0.22;
+const CORE_ROCK = { rocky: 'minecraft:bedrock', habitable: 'minecraft:deepslate' };
 // Real shipped planets run ~2% ore-to-solid-block density; this multiplier
 // tunes oreDensityPerBand (a small template-authored int like 1-3) up to
 // something in that neighborhood without changing the config schema.
@@ -58,7 +76,8 @@ function bandAt(r, radius) {
   if (r >= rStoneStart) return 2;
   if (r >= rDeepOuterStart) return 1;
   if (r >= rDeepInnerStart) return 0;
-  return -1; // core
+  if (r >= radius * CORE_FRACTION) return -1; // inner filler, reuses deep-inner rock
+  return -2; // true core
 }
 
 function surfaceDisplacement(x, y, z, seed) {
@@ -68,11 +87,17 @@ function surfaceDisplacement(x, y, z, seed) {
   return (n - 0.5) * 2 * SPIKE_AMPLITUDE; // -AMPLITUDE..+AMPLITUDE
 }
 
-function blockForBand(band, material, category) {
+function blockForBand(band, material, category, x, y, z, spiceSeed) {
   const layers = material.stoneLayers;
-  if (band === -1) return (layers && layers[0]) || DEFAULT_BAND_ROCK[0]; // core reuses innermost rock
-  if (layers && layers[band]) return layers[band];
+  if (band === -2) return CORE_ROCK[category] || DEFAULT_STONE;
+  if (band === -1) return (layers && layers[0]) || DEFAULT_BAND_ROCK[0]; // inner filler
+  if (layers && layers[band]) return layers[band]; // template-themed band: no spice, stays coherent
   if (band === 3 && category === 'habitable') return null; // handled by surface pass instead
+  const spiceOptions = BAND_SPICE[band];
+  if (spiceOptions) {
+    const n = valueNoise3D(x * 0.12, y * 0.12, z * 0.12, spiceSeed + band * 97);
+    if (n > 1 - BAND_SPICE_CHANCE) return spiceOptions[Math.floor(n * 1000) % spiceOptions.length];
+  }
   return DEFAULT_BAND_ROCK[band];
 }
 
@@ -111,20 +136,35 @@ function scatterOreVeins(world, rng, radius, oreId, density) {
 // On a rocky planet there's no vegetation to give the walkable top surface
 // visual interest, so that interest has to come from ore veins actually
 // breaking the surface — "aspérités" the player can see and mine without
-// digging. Rather than hoping scatterOreVeins' 3D vein scatter happens to
-// land near the surface by chance, this directly places ore at a fraction
-// of the topmost solid block of every column (the same "true top of a
-// column" trick decorateSurface uses for plants, so it's exactly where the
-// player is actually standing/looking, and always properly supported).
+// digging. Picks a handful of surface points and grows a diffuse ~10-block
+// clump of ore around each (a short random walk, not a single isolated
+// block), which reads as a vein poking out rather than salt-and-pepper
+// noise. Only ever touches the true topmost block of a column (same trick
+// decorateSurface uses for plants), so it's always where the player is
+// actually standing/looking, and always properly supported.
 function exposeSurfaceOre(world, rng, radius, ores, density) {
   if (!ores || !ores.length) return;
-  const chance = Math.min(0.18, 0.025 * density);
-  for (let x = -radius; x <= radius; x++) {
-    for (let z = -radius; z <= radius; z++) {
-      if (x * x + z * z > radius * radius) continue;
-      const topY = world.topSurfaceY(x, z, radius + 6);
-      if (topY === null) continue;
-      if (rng() < chance) world.set(x, topY, z, pick(rng, ores));
+  const clusterCount = Math.round(2 + density * 2.5);
+  let placed = 0;
+  let attempts = 0;
+  while (placed < clusterCount && attempts < clusterCount * 20) {
+    attempts++;
+    const ang = rng() * Math.PI * 2;
+    const r = Math.sqrt(rng()) * radius * 0.9;
+    const cx = Math.round(Math.cos(ang) * r);
+    const cz = Math.round(Math.sin(ang) * r);
+    const topY = world.topSurfaceY(cx, cz, radius + 6);
+    if (topY === null) continue;
+    placed++;
+    const oreId = pick(rng, ores);
+    const clumpSize = 7 + Math.floor(rng() * 6);
+    let x = cx, y = topY, z = cz;
+    for (let i = 0; i < clumpSize; i++) {
+      const groundY = world.topSurfaceY(x, z, y + 3);
+      if (groundY !== null && world.get(x, groundY, z) !== 'minecraft:air') world.set(x, groundY, z, oreId);
+      x += Math.floor(rng() * 3) - 1;
+      z += Math.floor(rng() * 3) - 1;
+      y = groundY === null ? y : groundY;
     }
   }
 }
@@ -143,6 +183,41 @@ function carveCaves(world, radius, rng, seed) {
         if (r > rCeiling || r < rFloor) continue;
         const n = valueNoise3D(x * scale, y * scale, z * scale, seed);
         if (n > 0.74) world.blocks.delete(world.key(x, y, z));
+      }
+    }
+  }
+}
+
+// A winding surface channel across the walkable top, carved a couple blocks
+// deep and filled with liquid — a river, not just a static lake. Follows a
+// random walk with momentum (each step nudges the previous heading rather
+// than picking a fresh random direction) so the path curves naturally
+// instead of zigzagging.
+function carveRiver(world, rng, radius, liquidId) {
+  const startAng = rng() * Math.PI * 2;
+  let x = Math.cos(startAng) * radius * 0.3;
+  let z = Math.sin(startAng) * radius * 0.3;
+  let heading = rng() * Math.PI * 2;
+  const steps = 90 + Math.floor(rng() * 60);
+  for (let i = 0; i < steps; i++) {
+    heading += (rng() - 0.5) * 0.5;
+    x += Math.cos(heading) * 1.5;
+    z += Math.sin(heading) * 1.5;
+    if (x * x + z * z > radius * radius * 0.92) break;
+
+    const ix = Math.round(x), iz = Math.round(z);
+    const topY = world.topSurfaceY(ix, iz, radius + 6);
+    if (topY === null) continue;
+    const w = 2 + Math.floor(rng() * 2);
+    for (let dx = -w; dx <= w; dx++) {
+      for (let dz = -w; dz <= w; dz++) {
+        if (dx * dx + dz * dz > w * w) continue;
+        const bx = ix + dx, bz = iz + dz;
+        const by = world.topSurfaceY(bx, bz, radius + 6);
+        if (by === null) continue;
+        world.set(bx, by, bz, liquidId);
+        world.set(bx, by - 1, bz, liquidId);
+        if (world.get(bx, by + 1, bz) !== 'minecraft:air') world.blocks.delete(world.key(bx, by + 1, bz));
       }
     }
   }
@@ -175,7 +250,11 @@ function scatterLiquidPockets(world, rng, radius, liquidId, count = 3) {
 // is the surface), so it never needs its own external support check.
 function placeTree(world, x, groundY, z, wood, rng) {
   const height = 4 + Math.floor(rng() * 3);
-  for (let i = 0; i < height; i++) world.set(x, groundY + i, z, wood.log);
+  // Explicit axis=y: a bare block id defaults correctly in native structure
+  // NBT, but leaving it implicit here isn't worth the risk of a sideways
+  // trunk if some downstream reader doesn't fall back the same way.
+  const verticalLog = wood.log.includes('[') ? wood.log : `${wood.log}[axis=y]`;
+  for (let i = 0; i < height; i++) world.set(x, groundY + i, z, verticalLog);
   const topY = groundY + height - 1;
   for (let dy = -2; dy <= 1; dy++) {
     const ringRadius = dy <= -1 ? 2 : 1;
@@ -278,7 +357,9 @@ function placeBoundsMarkers(world) {
 
 // material shape: { category, stoneLayers?, dirt?, grass?, grassAlt?, woods?,
 // flower?, herb?, liquid?, ores?, oreDensityPerBand? } — see README.md.
-function generatePlanet({ category, material, radius = 90, seed = 1, spawnerCount }) {
+// fallbackLiquids: blocks/vanilla.json's `liquid` list, used for the
+// river/underground pockets when a template doesn't specify its own liquid.
+function generatePlanet({ category, material, radius = 90, seed = 1, spawnerCount, fallbackLiquids }) {
   const { mulberry32 } = require('./rng');
   const rng = mulberry32(seed);
   const noiseSeed = seed ^ 0x9e3779b9;
@@ -298,7 +379,7 @@ function generatePlanet({ category, material, radius = 90, seed = 1, spawnerCoun
         const r = rRaw - disp; // positive noise pushes material outward
         if (r > radius) continue;
         const band = bandAt(r, radius);
-        let blockId = blockForBand(band, material, category);
+        let blockId = blockForBand(band, material, category, x, y, z, noiseSeed);
         if (blockId === null) {
           // outermost shell of a habitable planet with no custom stoneLayers:
           // grass on the very surface, a thin dirt band just beneath it.
@@ -311,18 +392,29 @@ function generatePlanet({ category, material, radius = 90, seed = 1, spawnerCoun
 
   carveCaves(world, radius, rng, noiseSeed);
 
-  const ores = material.ores || [];
-  const density = material.oreDensityPerBand || 2;
-  for (const oreId of ores) scatterOreVeins(world, rng, radius, oreId, density);
+  // Ore is a rocky-planet feature only — habitable planets get their visual
+  // interest from vegetation instead (a scattering of exposed ore across a
+  // grassy planet reads as noise, not a deliberate resource to mine).
+  if (category === 'rocky') {
+    const ores = material.ores || [];
+    const density = material.oreDensityPerBand || 2;
+    for (const oreId of ores) scatterOreVeins(world, rng, radius, oreId, density);
+    exposeSurfaceOre(world, rng, radius, ores, density);
+  }
 
-  if (material.liquid) scatterLiquidPockets(world, rng, radius, material.liquid);
+  // Every planet gets a river and a couple of underground pockets — using
+  // the template's own liquid if it specified one, otherwise picking from
+  // the shared block bank so this doesn't depend on every template
+  // explicitly opting in.
+  const liquidPool = fallbackLiquids && fallbackLiquids.length ? fallbackLiquids : ['minecraft:water'];
+  const liquid = material.liquid || pick(rng, liquidPool);
+  carveRiver(world, rng, radius, liquid);
+  scatterLiquidPockets(world, rng, radius, liquid, 1 + Math.floor(rng() * 2));
 
   let spawners = [];
   if (category === 'habitable') {
     decorateSurface(world, rng, radius, material);
     spawners = placePassiveMobSpawners(world, rng, radius, spawnerCount || (3 + Math.floor(rng() * 3)));
-  } else {
-    exposeSurfaceOre(world, rng, radius, ores, density);
   }
 
   placeBoundsMarkers(world);
