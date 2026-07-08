@@ -6,6 +6,15 @@ const { valueNoise3D } = require('./noise');
 const DEFAULT_STONE = 'minecraft:stone';
 const DEFAULT_DIRT = 'minecraft:dirt';
 const DEFAULT_GRASS = 'minecraft:grass_block';
+// Default rock per band (used whenever a template doesn't specify its own
+// stoneLayers) — andesite/diorite for the two deep bands, matching the
+// "andesite inner / diorite-accent outer" banding real rocky planets in the
+// live datapack actually use, rather than flat stone everywhere.
+const DEFAULT_BAND_ROCK = ['minecraft:andesite', 'minecraft:diorite', DEFAULT_STONE, DEFAULT_STONE];
+// Real shipped planets run ~2% ore-to-solid-block density; this multiplier
+// tunes oreDensityPerBand (a small template-authored int like 1-3) up to
+// something in that neighborhood without changing the config schema.
+const ORE_VEINS_PER_DENSITY_UNIT = 40;
 
 const PASSIVE_MOBS = [
   'minecraft:cow', 'minecraft:sheep', 'minecraft:pig', 'minecraft:chicken',
@@ -26,11 +35,23 @@ const STONE_LAYER = 8;
 const DEEP_OUTER = 10;
 const DEEP_INNER = 12;
 
-function bandAt(r, radius) {
+// Surface roughness ("rocky spikes"): rocky planets get their outer radius
+// perturbed by direction-dependent noise instead of being a perfect
+// mathematical sphere. Band boundaries shift by the same displacement so the
+// rock strata still read as parallel layers following the bumpy surface.
+const SPIKE_AMPLITUDE = 5;
+const SPIKE_SCALE = 2.2;
+
+function bandBoundaries(radius) {
   const rDirtStart = radius - DIRT_SHELL;
   const rStoneStart = rDirtStart - STONE_LAYER;
   const rDeepOuterStart = rStoneStart - DEEP_OUTER;
   const rDeepInnerStart = rDeepOuterStart - DEEP_INNER;
+  return { rDirtStart, rStoneStart, rDeepOuterStart, rDeepInnerStart };
+}
+
+function bandAt(r, radius) {
+  const { rDirtStart, rStoneStart, rDeepOuterStart, rDeepInnerStart } = bandBoundaries(radius);
   if (r >= rDirtStart) return 3; // outermost shell
   if (r >= rStoneStart) return 2;
   if (r >= rDeepOuterStart) return 1;
@@ -38,28 +59,32 @@ function bandAt(r, radius) {
   return -1; // core
 }
 
-function blockForBand(band, material, category) {
-  const layers = material.stoneLayers;
-  if (band === -1) return (layers && layers[0]) || DEFAULT_STONE; // core reuses innermost rock
-  if (layers && layers[band]) return layers[band];
-  if (band === 3 && category === 'habitable') return null; // handled by surface pass instead
-  return DEFAULT_STONE;
+function surfaceDisplacement(x, y, z, seed) {
+  const len = Math.sqrt(x * x + y * y + z * z) || 1;
+  const nx = (x / len) * SPIKE_SCALE, ny = (y / len) * SPIKE_SCALE, nz = (z / len) * SPIKE_SCALE;
+  const n = valueNoise3D(nx, ny, nz, seed); // 0..1
+  return (n - 0.5) * 2 * SPIKE_AMPLITUDE; // -AMPLITUDE..+AMPLITUDE
 }
 
-// Scatters `count` small (3-6 block) veins of `oreId` at random positions
-// whose radius falls within the stone/deep bands (never in the outer shell
-// or the solid core).
-function scatterOreVeins(world, rng, radius, oreId, count) {
-  const rMin = radius - DIRT_SHELL - STONE_LAYER - DEEP_OUTER - DEEP_INNER + 2;
-  const rMax = radius - DIRT_SHELL - 2;
+function blockForBand(band, material, category) {
+  const layers = material.stoneLayers;
+  if (band === -1) return (layers && layers[0]) || DEFAULT_BAND_ROCK[0]; // core reuses innermost rock
+  if (layers && layers[band]) return layers[band];
+  if (band === 3 && category === 'habitable') return null; // handled by surface pass instead
+  return DEFAULT_BAND_ROCK[band];
+}
+
+// Scatters `count` veins (6-10 blocks each) of `oreId` at random positions
+// within a single explicit radius range [rMin, rMax].
+function scatterOreVeinsInRange(world, rng, rMin, rMax, oreId, count) {
   for (let i = 0; i < count; i++) {
-    const r = rMin + rng() * (rMax - rMin);
+    const r = rMin + rng() * Math.max(0, rMax - rMin);
     const theta = rng() * Math.PI * 2;
     const phi = Math.acos(2 * rng() - 1);
     const cx = Math.round(r * Math.sin(phi) * Math.cos(theta));
     const cy = Math.round(r * Math.sin(phi) * Math.sin(theta));
     const cz = Math.round(r * Math.cos(phi));
-    const veinSize = 3 + Math.floor(rng() * 4);
+    const veinSize = 6 + Math.floor(rng() * 5);
     let x = cx, y = cy, z = cz;
     for (let v = 0; v < veinSize; v++) {
       if (world.get(x, y, z) !== 'minecraft:air') world.set(x, y, z, oreId);
@@ -68,6 +93,17 @@ function scatterOreVeins(world, rng, radius, oreId, count) {
       z += Math.floor(rng() * 3) - 1;
     }
   }
+}
+
+// `density` (as authored in a template, e.g. 1-3) veins-per-density-unit of
+// `oreId` PER solid rock band (deep-inner, deep-outer, stone-layer — never
+// the outer dirt/grass shell or the untouched core).
+function scatterOreVeins(world, rng, radius, oreId, density) {
+  const count = density * ORE_VEINS_PER_DENSITY_UNIT;
+  const { rDirtStart, rStoneStart, rDeepOuterStart, rDeepInnerStart } = bandBoundaries(radius);
+  scatterOreVeinsInRange(world, rng, rDeepInnerStart + 2, rDeepOuterStart, oreId, count);
+  scatterOreVeinsInRange(world, rng, rDeepOuterStart, rStoneStart, oreId, count);
+  scatterOreVeinsInRange(world, rng, rStoneStart, rDirtStart - 2, oreId, count);
 }
 
 // Carves organic pockets out of the interior using 3D value noise, leaving
@@ -229,10 +265,14 @@ function generatePlanet({ category, material, radius = 90, seed = 1, spawnerCoun
   const grassAlt = material.grassAlt || grass;
   const dirt = material.dirt || DEFAULT_DIRT;
 
-  for (let x = -radius; x <= radius; x++) {
-    for (let y = -radius; y <= radius; y++) {
-      for (let z = -radius; z <= radius; z++) {
-        const r = Math.sqrt(x * x + y * y + z * z);
+  const spikeRadius = radius + SPIKE_AMPLITUDE;
+  for (let x = -spikeRadius; x <= spikeRadius; x++) {
+    for (let y = -spikeRadius; y <= spikeRadius; y++) {
+      for (let z = -spikeRadius; z <= spikeRadius; z++) {
+        const rRaw = Math.sqrt(x * x + y * y + z * z);
+        if (rRaw > spikeRadius) continue;
+        const disp = category === 'rocky' ? surfaceDisplacement(x, y, z, noiseSeed) : 0;
+        const r = rRaw - disp; // positive noise pushes material outward
         if (r > radius) continue;
         const band = bandAt(r, radius);
         let blockId = blockForBand(band, material, category);
