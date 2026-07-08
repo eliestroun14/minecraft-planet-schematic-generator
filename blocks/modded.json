@@ -1,0 +1,18 @@
+{
+  "mekanism": {
+    "ore": [
+      "mekanism:deepslate_osmium_ore",
+      "mekanism:deepslate_tin_ore",
+      "mekanism:deepslate_uranium_ore",
+      "mekanism:deepslate_lead_ore",
+      "mekanism:deepslate_fluorite_ore"
+    ]
+  },
+  "immersiveengineering": {
+    "ore": [
+      "immersiveengineering:deepslate_ore_aluminum",
+      "immersiveengineering:deepslate_ore_nickel",
+      "immersiveengineering:deepslate_ore_silver"
+    ]
+  }
+}

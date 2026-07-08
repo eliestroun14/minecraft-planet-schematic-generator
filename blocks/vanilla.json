@@ -1,0 +1,129 @@
+{
+  "stone": [
+    "minecraft:deepslate",
+    "minecraft:end_stone",
+    "minecraft:netherrack",
+    "minecraft:blackstone",
+    "minecraft:calcite",
+    "minecraft:tuff",
+    "minecraft:basalt",
+    "minecraft:magma_block",
+    "minecraft:cobblestone",
+    "minecraft:mossy_cobblestone",
+    "minecraft:prismarine",
+    "minecraft:dripstone_block",
+    "minecraft:packed_ice"
+  ],
+  "accentStone": [
+    "minecraft:nether_bricks",
+    "minecraft:end_stone_bricks",
+    "minecraft:polished_blackstone",
+    "minecraft:cracked_deepslate_bricks",
+    "minecraft:polished_basalt",
+    "minecraft:mossy_stone_bricks",
+    "minecraft:chiseled_stone_bricks",
+    "minecraft:smooth_basalt"
+  ],
+  "ore": [
+    "minecraft:nether_quartz_ore",
+    "minecraft:ancient_debris",
+    "minecraft:coal_ore",
+    "minecraft:iron_ore",
+    "minecraft:gold_ore",
+    "minecraft:diamond_ore",
+    "minecraft:copper_ore",
+    "minecraft:deepslate_copper_ore"
+  ],
+  "wood": [
+    {
+      "log": "minecraft:cherry_log",
+      "leaves": "minecraft:cherry_leaves"
+    },
+    {
+      "log": "minecraft:warped_stem",
+      "leaves": "minecraft:warped_wart_block"
+    },
+    {
+      "log": "minecraft:crimson_stem",
+      "leaves": "minecraft:nether_wart_block"
+    },
+    {
+      "log": "minecraft:mangrove_log",
+      "leaves": "minecraft:mangrove_leaves"
+    },
+    {
+      "log": "minecraft:dark_oak_log",
+      "leaves": "minecraft:dark_oak_leaves"
+    },
+    {
+      "log": "minecraft:oak_log",
+      "leaves": "minecraft:oak_leaves"
+    },
+    {
+      "log": "minecraft:birch_log",
+      "leaves": "minecraft:birch_leaves"
+    },
+    {
+      "log": "minecraft:spruce_log",
+      "leaves": "minecraft:spruce_leaves"
+    },
+    {
+      "log": "minecraft:jungle_log",
+      "leaves": "minecraft:jungle_leaves"
+    },
+    {
+      "log": "minecraft:acacia_log",
+      "leaves": "minecraft:acacia_leaves"
+    }
+  ],
+  "grass": [
+    "minecraft:grass_block",
+    "minecraft:mycelium",
+    "minecraft:podzol",
+    "minecraft:warped_nylium",
+    "minecraft:crimson_nylium",
+    "minecraft:moss_block"
+  ],
+  "dirt": [
+    "minecraft:dirt",
+    "minecraft:coarse_dirt",
+    "minecraft:rooted_dirt",
+    "minecraft:mud",
+    "minecraft:podzol",
+    "minecraft:netherrack",
+    "minecraft:soul_soil",
+    "minecraft:clay"
+  ],
+  "flower": [
+    "minecraft:poppy",
+    "minecraft:dandelion",
+    "minecraft:blue_orchid",
+    "minecraft:allium",
+    "minecraft:azure_bluet",
+    "minecraft:red_tulip",
+    "minecraft:white_tulip",
+    "minecraft:oxeye_daisy",
+    "minecraft:cornflower",
+    "minecraft:lily_of_the_valley",
+    "minecraft:flowering_azalea",
+    "minecraft:brown_mushroom",
+    "minecraft:red_mushroom",
+    "minecraft:crimson_fungus",
+    "minecraft:warped_fungus",
+    "minecraft:torchflower"
+  ],
+  "herb": [
+    "minecraft:grass",
+    "minecraft:fern",
+    "minecraft:large_fern",
+    "minecraft:vine",
+    "minecraft:twisting_vines",
+    "minecraft:weeping_vines",
+    "minecraft:sugar_cane",
+    "minecraft:dead_bush"
+  ],
+  "liquid": [
+    "minecraft:water",
+    "minecraft:lava"
+  ]
+}

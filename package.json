@@ -1,0 +1,14 @@
+{
+  "name": "minecraft-planet-schematic-generator",
+  "version": "0.1.0",
+  "private": false,
+  "description": "Config-driven (JSON) generator that produces Minecraft Sponge Schematic (.schem) planet files via a native spherical-shell voxel algorithm.",
+  "main": "interpreter/generate.js",
+  "scripts": {
+    "generate": "node interpreter/generate.js"
+  },
+  "dependencies": {
+    "prismarine-nbt": "^2.8.0"
+  },
+  "license": "MIT"
+}

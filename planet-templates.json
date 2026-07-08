@@ -1,0 +1,205 @@
+{
+  "categories": {
+    "rocky": {
+      "scoreCategory": 1,
+      "hasTrees": false,
+      "templates": [
+        {
+          "name": "vanilla",
+          "stoneLayers": null,
+          "liquid": null,
+          "ores": [
+            "minecraft:coal_ore",
+            "minecraft:iron_ore",
+            "minecraft:gold_ore",
+            "minecraft:lapis_ore",
+            "minecraft:redstone_ore",
+            "minecraft:emerald_ore",
+            "minecraft:diamond_ore"
+          ],
+          "oreDensityPerBand": 3
+        },
+        {
+          "name": "dimension",
+          "_comment": "stoneLayers va de l'interieur vers l'exterieur : bande andesite, bande diorite/accent, couche stone, coquille dirt-layer",
+          "stoneLayers": [
+            "minecraft:netherrack",
+            "minecraft:nether_bricks",
+            "minecraft:netherrack",
+            "minecraft:basalt"
+          ],
+          "liquid": "minecraft:lava",
+          "ores": [
+            "minecraft:nether_quartz_ore",
+            "minecraft:obsidian"
+          ],
+          "oreDensityPerBand": 3
+        },
+        {
+          "name": "modded",
+          "stoneLayers": [
+            "minecraft:deepslate",
+            "minecraft:end_stone",
+            "minecraft:tuff",
+            "minecraft:deepslate"
+          ],
+          "liquid": null,
+          "ores": [
+            "mekanism:deepslate_osmium_ore",
+            "mekanism:deepslate_tin_ore",
+            "mekanism:deepslate_uranium_ore",
+            "mekanism:deepslate_lead_ore",
+            "mekanism:deepslate_fluorite_ore",
+            "immersiveengineering:deepslate_ore_aluminum",
+            "immersiveengineering:deepslate_ore_nickel"
+          ],
+          "oreDensityPerBand": 3
+        },
+        {
+          "name": "volcanic",
+          "stoneLayers": [
+            "minecraft:blackstone",
+            "minecraft:polished_blackstone",
+            "minecraft:magma_block",
+            "minecraft:basalt"
+          ],
+          "liquid": "minecraft:lava",
+          "ores": [
+            "minecraft:ancient_debris",
+            "minecraft:gold_ore",
+            "minecraft:nether_quartz_ore"
+          ],
+          "oreDensityPerBand": 3
+        }
+      ],
+      "randomCount": 10,
+      "randomSeed": 4001
+    },
+    "habitable": {
+      "scoreCategory": 2,
+      "hasTrees": true,
+      "templates": [
+        {
+          "name": "stem",
+          "stoneLayers": [
+            "minecraft:deepslate",
+            "minecraft:basalt",
+            "minecraft:deepslate",
+            "minecraft:blackstone"
+          ],
+          "dirt": "minecraft:netherrack",
+          "grass": "minecraft:warped_nylium",
+          "grassAlt": "minecraft:crimson_nylium",
+          "wood": {
+            "log": "minecraft:warped_stem",
+            "leaves": "minecraft:warped_wart_block"
+          },
+          "flower": null,
+          "herb": [
+            "minecraft:vine",
+            "minecraft:weeping_vines",
+            "minecraft:twisting_vines"
+          ],
+          "liquid": "minecraft:lava",
+          "ores": [
+            "minecraft:nether_quartz_ore",
+            "minecraft:ancient_debris",
+            "mekanism:deepslate_osmium_ore"
+          ],
+          "oreDensityPerBand": 2
+        },
+        {
+          "name": "cherry",
+          "stoneLayers": null,
+          "dirt": null,
+          "grass": null,
+          "grassAlt": null,
+          "wood": {
+            "log": "minecraft:cherry_log",
+            "leaves": "minecraft:cherry_leaves"
+          },
+          "flower": [
+            "minecraft:pink_tulip",
+            "minecraft:flowering_azalea",
+            "minecraft:allium"
+          ],
+          "herb": [
+            "minecraft:grass",
+            "minecraft:fern"
+          ],
+          "liquid": null,
+          "ores": [
+            "minecraft:coal_ore",
+            "minecraft:iron_ore",
+            "minecraft:gold_ore",
+            "minecraft:diamond_ore",
+            "minecraft:emerald_ore"
+          ],
+          "oreDensityPerBand": 2
+        },
+        {
+          "name": "swamp",
+          "stoneLayers": null,
+          "dirt": "minecraft:mud",
+          "grass": "minecraft:grass_block",
+          "grassAlt": "minecraft:mud",
+          "wood": {
+            "log": "minecraft:mangrove_log",
+            "leaves": "minecraft:mangrove_leaves"
+          },
+          "flower": [
+            "minecraft:lily_of_the_valley",
+            "minecraft:blue_orchid"
+          ],
+          "herb": [
+            "minecraft:vine",
+            "minecraft:large_fern",
+            "minecraft:fern"
+          ],
+          "liquid": "minecraft:water",
+          "ores": [
+            "minecraft:iron_ore",
+            "minecraft:gold_ore",
+            "minecraft:coal_ore"
+          ],
+          "oreDensityPerBand": 2
+        },
+        {
+          "name": "overworld",
+          "_comment": "planete de spawn : rendu Overworld par defaut (chene/herbe/terre vanilla), pensee pour accueillir les joueurs",
+          "stoneLayers": null,
+          "dirt": null,
+          "grass": null,
+          "grassAlt": null,
+          "wood": {
+            "log": "minecraft:oak_log",
+            "leaves": "minecraft:oak_leaves"
+          },
+          "flower": [
+            "minecraft:poppy",
+            "minecraft:dandelion",
+            "minecraft:oxeye_daisy",
+            "minecraft:cornflower"
+          ],
+          "herb": [
+            "minecraft:grass",
+            "minecraft:fern"
+          ],
+          "liquid": null,
+          "ores": [
+            "minecraft:coal_ore",
+            "minecraft:iron_ore",
+            "minecraft:gold_ore",
+            "minecraft:lapis_ore",
+            "minecraft:redstone_ore",
+            "minecraft:emerald_ore",
+            "minecraft:diamond_ore"
+          ],
+          "oreDensityPerBand": 2
+        }
+      ],
+      "randomCount": 6,
+      "randomSeed": 5001
+    }
+  }
+}
