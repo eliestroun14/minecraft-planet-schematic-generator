@@ -4,7 +4,7 @@ A config-driven generator that turns JSON block/template definitions into
 Minecraft **Sponge Schematic (`.schem`)** files — large procedural "planet"
 spheres (rocky/barren or habitable/vegetated), ready to paste with WorldEdit
 or convert into a native structure for a jigsaw-based world generator (see
-[minecraft-planet-generator](https://github.com/eliestroun14/minecraft-planet-generator),
+[minecraft-planet-world-generator](https://github.com/eliestroun14/minecraft-planet-world-generator),
 the datapack this tool feeds).
 
 Generation happens entirely offline in Node.js — no Minecraft instance
