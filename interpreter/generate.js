@@ -65,6 +65,16 @@ function resolveUseModdedBlocks(args) {
   return String(args['use-modded-blocks']) !== 'false';
 }
 
+// Every generated .schem lands in outputs/ by default (gitignored — it's
+// generated content, not source) so it's always in one predictable place
+// instead of scattered wherever the CLI happened to be run from.
+function resolveOutPath(args, defaultName) {
+  if (args.out) return args.out;
+  const outDir = path.join(ROOT, 'outputs');
+  fs.mkdirSync(outDir, { recursive: true });
+  return path.join(outDir, defaultName);
+}
+
 function cmdTemplate(args) {
   const useModdedBlocks = resolveUseModdedBlocks(args);
   const templates = loadTemplates();
@@ -77,7 +87,7 @@ function cmdTemplate(args) {
   if (!material) throw new Error(`Template "${args.template}" is entirely modded-block-based; skipped because --use-modded-blocks false.`);
 
   const seed = args.seed !== undefined ? parseInt(args.seed, 10) : Date.now() & 0xffffffff;
-  const outPath = args.out || `${args.category}-${args.template}.schem`;
+  const outPath = resolveOutPath(args, `${args.category}-${args.template}.schem`);
   const t0 = Date.now();
   const { world } = generatePlanet({ category: args.category, material: { ...material, category: args.category }, radius: args.radius ? parseInt(args.radius, 10) : 90, seed });
   const info = writeSchematic(world, outPath);
@@ -89,7 +99,7 @@ function cmdRandom(args) {
   const bank = loadBlockBank(useModdedBlocks);
   const seed = args.seed !== undefined ? parseInt(args.seed, 10) : Date.now() & 0xffffffff;
   const material = buildRandomMaterial(args.category, bank, mulberry32(seed));
-  const outPath = args.out || `${args.category}-random.schem`;
+  const outPath = resolveOutPath(args, `${args.category}-random-${seed}.schem`);
   const t0 = Date.now();
   const { world } = generatePlanet({ category: args.category, material, radius: args.radius ? parseInt(args.radius, 10) : 90, seed: seed ^ 0x9e3779b9 });
   const info = writeSchematic(world, outPath);

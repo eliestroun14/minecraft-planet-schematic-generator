@@ -55,15 +55,18 @@ to generate; this takes ~5 seconds).
 ```
 npm install
 
-# A specific hand-authored template
-node interpreter/generate.js template --category rocky --template vanilla --seed 42 --out rocky-vanilla.schem
+# A specific hand-authored template -> outputs/rocky-vanilla.schem
+node interpreter/generate.js template --category rocky --template vanilla --seed 42
 
-# Fully randomized material rolls (every axis — rock, ore, wood, flowers — picked independently)
-node interpreter/generate.js random --category habitable --seed 42 --out random-planet.schem
+# Fully randomized material rolls -> outputs/habitable-random-<seed>.schem
+node interpreter/generate.js random --category habitable --seed 42
 
 # Vanilla-only output (no mod dependency) — see "Modded blocks" below
-node interpreter/generate.js template --category rocky --template vanilla --seed 42 --out rocky-vanilla.schem --use-modded-blocks false
+node interpreter/generate.js template --category rocky --template vanilla --seed 42 --use-modded-blocks false
 ```
+
+Every run writes into `outputs/` (created automatically, gitignored) unless
+you pass an explicit `--out path`.
 
 Available categories/templates: `rocky` (vanilla, dimension, modded,
 volcanic), `habitable` (stem, cherry, swamp, overworld). List them with:

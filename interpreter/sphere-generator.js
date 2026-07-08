@@ -35,10 +35,12 @@ const STONE_LAYER = 8;
 const DEEP_OUTER = 10;
 const DEEP_INNER = 12;
 
-// Surface roughness ("rocky spikes"): rocky planets get their outer radius
-// perturbed by direction-dependent noise instead of being a perfect
-// mathematical sphere. Band boundaries shift by the same displacement so the
-// rock strata still read as parallel layers following the bumpy surface.
+// General terrain relief: rocky planets get their outer radius perturbed by
+// direction-dependent noise instead of being a perfect mathematical sphere.
+// Band boundaries shift by the same displacement so the rock strata still
+// read as parallel layers following the bumpy surface. This is separate
+// from — and secondary to — exposed ore veins (see scatterOreVeins) for
+// giving the walkable top surface visual interest on a rocky planet.
 const SPIKE_AMPLITUDE = 5;
 const SPIKE_SCALE = 2.2;
 
@@ -96,14 +98,35 @@ function scatterOreVeinsInRange(world, rng, rMin, rMax, oreId, count) {
 }
 
 // `density` (as authored in a template, e.g. 1-3) veins-per-density-unit of
-// `oreId` PER solid rock band (deep-inner, deep-outer, stone-layer — never
-// the outer dirt/grass shell or the untouched core).
+// `oreId` PER solid rock band, including the outermost surface shell.
 function scatterOreVeins(world, rng, radius, oreId, density) {
   const count = density * ORE_VEINS_PER_DENSITY_UNIT;
   const { rDirtStart, rStoneStart, rDeepOuterStart, rDeepInnerStart } = bandBoundaries(radius);
   scatterOreVeinsInRange(world, rng, rDeepInnerStart + 2, rDeepOuterStart, oreId, count);
   scatterOreVeinsInRange(world, rng, rDeepOuterStart, rStoneStart, oreId, count);
-  scatterOreVeinsInRange(world, rng, rStoneStart, rDirtStart - 2, oreId, count);
+  scatterOreVeinsInRange(world, rng, rStoneStart, rDirtStart, oreId, count);
+  scatterOreVeinsInRange(world, rng, rDirtStart, radius, oreId, Math.round(count * 1.5));
+}
+
+// On a rocky planet there's no vegetation to give the walkable top surface
+// visual interest, so that interest has to come from ore veins actually
+// breaking the surface — "aspérités" the player can see and mine without
+// digging. Rather than hoping scatterOreVeins' 3D vein scatter happens to
+// land near the surface by chance, this directly places ore at a fraction
+// of the topmost solid block of every column (the same "true top of a
+// column" trick decorateSurface uses for plants, so it's exactly where the
+// player is actually standing/looking, and always properly supported).
+function exposeSurfaceOre(world, rng, radius, ores, density) {
+  if (!ores || !ores.length) return;
+  const chance = Math.min(0.18, 0.025 * density);
+  for (let x = -radius; x <= radius; x++) {
+    for (let z = -radius; z <= radius; z++) {
+      if (x * x + z * z > radius * radius) continue;
+      const topY = world.topSurfaceY(x, z, radius + 6);
+      if (topY === null) continue;
+      if (rng() < chance) world.set(x, topY, z, pick(rng, ores));
+    }
+  }
 }
 
 // Carves organic pockets out of the interior using 3D value noise, leaving
@@ -298,6 +321,8 @@ function generatePlanet({ category, material, radius = 90, seed = 1, spawnerCoun
   if (category === 'habitable') {
     decorateSurface(world, rng, radius, material);
     spawners = placePassiveMobSpawners(world, rng, radius, spawnerCount || (3 + Math.floor(rng() * 3)));
+  } else {
+    exposeSurfaceOre(world, rng, radius, ores, density);
   }
 
   placeBoundsMarkers(world);
