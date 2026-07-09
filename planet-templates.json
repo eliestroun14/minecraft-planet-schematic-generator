@@ -1,234 +1,130 @@
 {
+  "_schema": "Every category shares deep/semiDeep/central/outer + liquid — see interpreter/material.js's resolveMaterial for exactly how missing fields get filled from the block bank. habitable adds dirt/grass/grassAlt/wood|woods/flower/herb (explicit null = deliberately none; an absent key gets filled). ring adds ringBlocks/ringOre/ringTilt.",
   "categories": {
     "rocky": {
-      "scoreCategory": 1,
-      "hasTrees": false,
       "templates": [
         {
           "name": "vanilla",
-          "stoneLayers": null,
-          "liquid": null,
-          "ores": [
-            "minecraft:coal_ore",
-            "minecraft:iron_ore",
-            "minecraft:gold_ore",
-            "minecraft:lapis_ore",
-            "minecraft:redstone_ore",
-            "minecraft:emerald_ore",
-            "minecraft:diamond_ore"
-          ],
-          "oreDensityPerBand": 3
+          "deep": { "rock": "minecraft:deepslate", "ore": "minecraft:diamond_ore" },
+          "semiDeep": { "mainRock": "minecraft:tuff", "noiseRock": "minecraft:andesite", "ores": ["minecraft:gold_ore", "minecraft:redstone_ore"] },
+          "central": { "mainRock": "minecraft:stone", "noiseRocks": ["minecraft:andesite", "minecraft:diorite"], "ores": ["minecraft:lapis_ore", "minecraft:coal_ore", "minecraft:emerald_ore"] },
+          "outer": { "mainRock": "minecraft:stone", "noiseRocks": ["minecraft:granite", "minecraft:gravel"] },
+          "liquid": "minecraft:water"
         },
         {
           "name": "dimension",
-          "_comment": "stoneLayers va de l'interieur vers l'exterieur : bande andesite, bande diorite/accent, couche stone, coquille dirt-layer",
-          "stoneLayers": [
-            "minecraft:netherrack",
-            "minecraft:nether_bricks",
-            "minecraft:netherrack",
-            "minecraft:basalt"
-          ],
-          "liquid": "minecraft:lava",
-          "ores": [
-            "minecraft:nether_quartz_ore",
-            "minecraft:obsidian"
-          ],
-          "oreDensityPerBand": 3
+          "_comment": "nether-themed",
+          "deep": { "rock": "minecraft:blackstone", "ore": "minecraft:ancient_debris" },
+          "semiDeep": { "mainRock": "minecraft:netherrack", "noiseRock": "minecraft:basalt", "ores": ["minecraft:nether_quartz_ore", "minecraft:gold_ore"] },
+          "central": { "mainRock": "minecraft:netherrack", "noiseRocks": ["minecraft:nether_bricks", "minecraft:basalt"], "ores": ["minecraft:gold_ore", "minecraft:redstone_ore", "minecraft:diamond_ore"] },
+          "outer": { "mainRock": "minecraft:netherrack", "noiseRocks": ["minecraft:basalt", "minecraft:magma_block"] },
+          "liquid": "minecraft:lava"
         },
         {
           "name": "modded",
-          "stoneLayers": [
-            "minecraft:deepslate",
-            "minecraft:end_stone",
-            "minecraft:tuff",
-            "minecraft:deepslate"
-          ],
-          "liquid": null,
-          "ores": [
-            "mekanism:deepslate_osmium_ore",
-            "mekanism:deepslate_tin_ore",
-            "mekanism:deepslate_uranium_ore",
-            "mekanism:deepslate_lead_ore",
-            "mekanism:deepslate_fluorite_ore",
-            "immersiveengineering:deepslate_ore_aluminum",
-            "immersiveengineering:deepslate_ore_nickel"
-          ],
-          "oreDensityPerBand": 3
+          "_comment": "Mekanism/Immersive Engineering showcase. Central deliberately ships only 2/3 ores and no liquid, to exercise resolveMaterial's bank-fallback fill for a missing slot.",
+          "deep": { "rock": "minecraft:deepslate", "ore": "mekanism:deepslate_osmium_ore" },
+          "semiDeep": { "mainRock": "minecraft:tuff", "noiseRock": "minecraft:deepslate", "ores": ["mekanism:deepslate_tin_ore", "immersiveengineering:deepslate_ore_aluminum"] },
+          "central": { "mainRock": "minecraft:deepslate", "noiseRocks": ["minecraft:end_stone", "minecraft:tuff"], "ores": ["mekanism:deepslate_uranium_ore", "mekanism:deepslate_lead_ore"] },
+          "outer": { "mainRock": "minecraft:stone", "noiseRocks": ["minecraft:deepslate", "minecraft:tuff"] }
         },
         {
           "name": "volcanic",
-          "stoneLayers": [
-            "minecraft:blackstone",
-            "minecraft:polished_blackstone",
-            "minecraft:magma_block",
-            "minecraft:basalt"
-          ],
-          "liquid": "minecraft:lava",
-          "ores": [
-            "minecraft:ancient_debris",
-            "minecraft:gold_ore",
-            "minecraft:nether_quartz_ore"
-          ],
-          "oreDensityPerBand": 3
+          "deep": { "rock": "minecraft:blackstone", "ore": "minecraft:ancient_debris" },
+          "semiDeep": { "mainRock": "minecraft:basalt", "noiseRock": "minecraft:magma_block", "ores": ["minecraft:gold_ore", "minecraft:nether_quartz_ore"] },
+          "central": { "mainRock": "minecraft:blackstone", "noiseRocks": ["minecraft:polished_blackstone", "minecraft:basalt"], "ores": ["minecraft:redstone_ore", "minecraft:diamond_ore", "minecraft:coal_ore"] },
+          "outer": { "mainRock": "minecraft:blackstone", "noiseRocks": ["minecraft:magma_block", "minecraft:basalt"] },
+          "liquid": "minecraft:lava"
         }
-      ],
-      "randomCount": 10,
-      "randomSeed": 4001
+      ]
     },
     "habitable": {
-      "scoreCategory": 2,
-      "hasTrees": true,
       "templates": [
         {
           "name": "stem",
-          "stoneLayers": [
-            "minecraft:deepslate",
-            "minecraft:basalt",
-            "minecraft:deepslate",
-            "minecraft:blackstone"
-          ],
+          "_comment": "warped/nether-themed, deliberately no flowers",
+          "deep": { "rock": "minecraft:deepslate", "ore": "minecraft:ancient_debris" },
+          "semiDeep": { "mainRock": "minecraft:basalt", "noiseRock": "minecraft:blackstone", "ores": ["minecraft:nether_quartz_ore", "mekanism:deepslate_osmium_ore"] },
+          "central": { "mainRock": "minecraft:deepslate", "noiseRocks": ["minecraft:basalt", "minecraft:blackstone"], "ores": ["minecraft:gold_ore", "minecraft:redstone_ore", "minecraft:coal_ore"] },
+          "outer": { "mainRock": "minecraft:deepslate", "noiseRocks": ["minecraft:basalt", "minecraft:blackstone"] },
           "dirt": "minecraft:netherrack",
           "grass": "minecraft:warped_nylium",
           "grassAlt": "minecraft:crimson_nylium",
-          "wood": {
-            "log": "minecraft:warped_stem",
-            "leaves": "minecraft:warped_wart_block"
-          },
+          "wood": { "log": "minecraft:warped_stem", "leaves": "minecraft:warped_wart_block" },
           "flower": null,
-          "herb": [
-            "minecraft:vine",
-            "minecraft:weeping_vines",
-            "minecraft:twisting_vines"
-          ],
-          "liquid": "minecraft:lava",
-          "ores": [
-            "minecraft:nether_quartz_ore",
-            "minecraft:ancient_debris",
-            "mekanism:deepslate_osmium_ore"
-          ],
-          "oreDensityPerBand": 2
+          "herb": ["minecraft:vine", "minecraft:weeping_vines", "minecraft:twisting_vines"],
+          "liquid": "minecraft:lava"
         },
         {
           "name": "cherry",
-          "stoneLayers": null,
-          "dirt": null,
-          "grass": null,
-          "grassAlt": null,
-          "wood": {
-            "log": "minecraft:cherry_log",
-            "leaves": "minecraft:cherry_leaves"
-          },
-          "flower": [
-            "minecraft:pink_tulip",
-            "minecraft:flowering_azalea",
-            "minecraft:allium"
-          ],
-          "herb": [
-            "minecraft:grass",
-            "minecraft:fern"
-          ],
-          "liquid": null,
-          "ores": [
-            "minecraft:coal_ore",
-            "minecraft:iron_ore",
-            "minecraft:gold_ore",
-            "minecraft:diamond_ore",
-            "minecraft:emerald_ore"
-          ],
-          "oreDensityPerBand": 2
+          "deep": { "rock": "minecraft:deepslate", "ore": "minecraft:diamond_ore" },
+          "semiDeep": { "mainRock": "minecraft:tuff", "noiseRock": "minecraft:andesite", "ores": ["minecraft:gold_ore", "minecraft:emerald_ore"] },
+          "central": { "mainRock": "minecraft:stone", "noiseRocks": ["minecraft:andesite", "minecraft:diorite"], "ores": ["minecraft:coal_ore", "minecraft:iron_ore", "minecraft:lapis_ore"] },
+          "outer": { "mainRock": "minecraft:stone", "noiseRocks": ["minecraft:granite", "minecraft:andesite"] },
+          "dirt": "minecraft:dirt",
+          "grass": "minecraft:grass_block",
+          "grassAlt": "minecraft:grass_block",
+          "wood": { "log": "minecraft:cherry_log", "leaves": "minecraft:cherry_leaves" },
+          "flower": ["minecraft:pink_tulip", "minecraft:flowering_azalea", "minecraft:allium"],
+          "herb": ["minecraft:grass", "minecraft:fern"],
+          "liquid": "minecraft:water"
         },
         {
           "name": "swamp",
-          "stoneLayers": null,
+          "deep": { "rock": "minecraft:deepslate", "ore": "minecraft:lapis_ore" },
+          "semiDeep": { "mainRock": "minecraft:tuff", "noiseRock": "minecraft:deepslate", "ores": ["minecraft:iron_ore", "minecraft:coal_ore"] },
+          "central": { "mainRock": "minecraft:stone", "noiseRocks": ["minecraft:andesite", "minecraft:diorite"], "ores": ["minecraft:gold_ore", "minecraft:redstone_ore", "minecraft:emerald_ore"] },
+          "outer": { "mainRock": "minecraft:stone", "noiseRocks": ["minecraft:gravel", "minecraft:andesite"] },
           "dirt": "minecraft:mud",
           "grass": "minecraft:grass_block",
           "grassAlt": "minecraft:mud",
-          "wood": {
-            "log": "minecraft:mangrove_log",
-            "leaves": "minecraft:mangrove_leaves"
-          },
-          "flower": [
-            "minecraft:lily_of_the_valley",
-            "minecraft:blue_orchid"
-          ],
-          "herb": [
-            "minecraft:vine",
-            "minecraft:large_fern",
-            "minecraft:fern"
-          ],
-          "liquid": "minecraft:water",
-          "ores": [
-            "minecraft:iron_ore",
-            "minecraft:gold_ore",
-            "minecraft:coal_ore"
-          ],
-          "oreDensityPerBand": 2
+          "wood": { "log": "minecraft:mangrove_log", "leaves": "minecraft:mangrove_leaves" },
+          "flower": ["minecraft:lily_of_the_valley", "minecraft:blue_orchid"],
+          "herb": ["minecraft:vine", "minecraft:large_fern", "minecraft:fern"],
+          "liquid": "minecraft:water"
         },
         {
           "name": "overworld",
-          "_comment": "planete de spawn : rendu Overworld par defaut (chene/herbe/terre vanilla), pensee pour accueillir les joueurs",
-          "stoneLayers": null,
-          "dirt": null,
-          "grass": null,
-          "grassAlt": null,
-          "wood": {
-            "log": "minecraft:oak_log",
-            "leaves": "minecraft:oak_leaves"
-          },
-          "flower": [
-            "minecraft:poppy",
-            "minecraft:dandelion",
-            "minecraft:oxeye_daisy",
-            "minecraft:cornflower"
-          ],
-          "herb": [
-            "minecraft:grass",
-            "minecraft:fern"
-          ],
-          "liquid": null,
-          "ores": [
-            "minecraft:coal_ore",
-            "minecraft:iron_ore",
-            "minecraft:gold_ore",
-            "minecraft:lapis_ore",
-            "minecraft:redstone_ore",
-            "minecraft:emerald_ore",
-            "minecraft:diamond_ore"
-          ],
-          "oreDensityPerBand": 2
+          "_comment": "planete de spawn : rendu Overworld par defaut, pensee pour accueillir les joueurs",
+          "deep": { "rock": "minecraft:deepslate", "ore": "minecraft:diamond_ore" },
+          "semiDeep": { "mainRock": "minecraft:tuff", "noiseRock": "minecraft:andesite", "ores": ["minecraft:gold_ore", "minecraft:lapis_ore"] },
+          "central": { "mainRock": "minecraft:stone", "noiseRocks": ["minecraft:andesite", "minecraft:diorite"], "ores": ["minecraft:coal_ore", "minecraft:iron_ore", "minecraft:redstone_ore"] },
+          "outer": { "mainRock": "minecraft:stone", "noiseRocks": ["minecraft:granite", "minecraft:gravel"] },
+          "dirt": "minecraft:dirt",
+          "grass": "minecraft:grass_block",
+          "grassAlt": "minecraft:grass_block",
+          "wood": { "log": "minecraft:oak_log", "leaves": "minecraft:oak_leaves" },
+          "flower": ["minecraft:poppy", "minecraft:dandelion", "minecraft:oxeye_daisy", "minecraft:cornflower"],
+          "herb": ["minecraft:grass", "minecraft:fern"],
+          "liquid": "minecraft:water"
         }
-      ],
-      "randomCount": 6,
-      "randomSeed": 5001
+      ]
     },
     "ring": {
-      "scoreCategory": 3,
-      "hasTrees": false,
-      "_comment": "Core body uses the same fields/semantics as rocky. ringBlocks: exactly 2 block ids alternated through the ring. ringOre: 1 ore mixed in. ringTilt: {x,y,z} unit vector normal to the ring's plane — omit/null for a random tilt each generation; (0,1,0) is flat/equatorial, (1,0,0) or (0,0,1) stands the ring on edge perpendicular to the ground.",
       "templates": [
         {
           "name": "asteroid",
-          "stoneLayers": null,
-          "liquid": null,
-          "ores": ["minecraft:iron_ore", "minecraft:coal_ore", "minecraft:gold_ore"],
-          "oreDensityPerBand": 2,
+          "deep": { "rock": "minecraft:deepslate", "ore": "minecraft:iron_ore" },
+          "semiDeep": { "mainRock": "minecraft:stone", "noiseRock": "minecraft:andesite", "ores": ["minecraft:coal_ore", "minecraft:gold_ore"] },
+          "central": { "mainRock": "minecraft:stone", "noiseRocks": ["minecraft:andesite", "minecraft:diorite"], "ores": ["minecraft:lapis_ore", "minecraft:redstone_ore", "minecraft:emerald_ore"] },
+          "outer": { "mainRock": "minecraft:stone", "noiseRocks": ["minecraft:gravel", "minecraft:cobblestone"] },
+          "liquid": "minecraft:water",
           "ringBlocks": ["minecraft:cobblestone", "minecraft:gravel"],
           "ringOre": "minecraft:iron_ore",
           "ringTilt": null
         },
         {
           "name": "ice",
-          "stoneLayers": ["minecraft:packed_ice", "minecraft:blue_ice", "minecraft:packed_ice", "minecraft:snow_block"],
+          "deep": { "rock": "minecraft:packed_ice", "ore": "minecraft:diamond_ore" },
+          "semiDeep": { "mainRock": "minecraft:blue_ice", "noiseRock": "minecraft:packed_ice", "ores": ["minecraft:lapis_ore", "minecraft:iron_ore"] },
+          "central": { "mainRock": "minecraft:packed_ice", "noiseRocks": ["minecraft:snow_block", "minecraft:blue_ice"], "ores": ["minecraft:gold_ore", "minecraft:redstone_ore", "minecraft:emerald_ore"] },
+          "outer": { "mainRock": "minecraft:snow_block", "noiseRocks": ["minecraft:packed_ice", "minecraft:powder_snow"] },
           "liquid": "minecraft:water",
-          "ores": ["minecraft:diamond_ore", "minecraft:lapis_ore"],
-          "oreDensityPerBand": 1,
           "ringBlocks": ["minecraft:packed_ice", "minecraft:snow_block"],
           "ringOre": "minecraft:diamond_ore",
           "ringTilt": { "x": 0, "y": 1, "z": 0 }
         }
-      ],
-      "randomCount": 4,
-      "randomSeed": 7001
+      ]
     }
   }
 }

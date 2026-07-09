@@ -9,8 +9,8 @@ a native structure for a jigsaw-based world generator (see
 the datapack this tool feeds).
 
 Generation happens entirely offline in Node.js — no Minecraft instance
-required. A planet (~181×181×181 blocks, several million voxels) generates
-in a few seconds.
+required. A planet (~260×260×260 blocks, tens of millions of voxels)
+generates in 10-20 seconds.
 
 ## Why
 
@@ -32,14 +32,18 @@ planet-templates.json  hand-authored planet presets (rocky.vanilla,
                         blocks (not necessarily from the shared bank)
 interpreter/
   sphere-generator.js  the core algorithm — a plain distance-from-center
-                        voxel loop assigning concentric shell bands, ore
-                        veins, noise-carved caves, a river + underground
-                        pockets, (habitable) surface decoration + passive-mob
-                        spawners, and (ring) an orbiting ring in an
-                        arbitrary/random plane around a shrunk core
+                        voxel loop assigning the seven concentric zones (see
+                        "Strata" below), ore veins, noise-carved caves, a
+                        river + underground pockets, (habitable) surface
+                        decoration + passive-mob spawners, and (ring) an
+                        orbiting ring in an arbitrary/random plane
+  material.js           resolveMaterial() — fills in whatever a template (or,
+                        for `random`, an empty spec) left unspecified by
+                        drawing from the block bank; single source of truth
+                        for the material shape every category shares
   world.js             sparse voxel grid (Map<"x,y,z", blockId>)
   noise.js              tiny deterministic 3D value-noise field for caves
-  random-material.js    fully-random material rolls (used by `random`)
+                        and multi-rock zone mixing
   rng.js                 seeded PRNG (mulberry32)
   schematic-writer.js    writes the voxel grid out as a Sponge Schematic v2
                           .schem file
@@ -49,9 +53,10 @@ interpreter/
 All of this is original — no code or content from any existing Minecraft
 mod or datapack. Earlier iterations of this project used a headless
 interpreter for an in-game `.mcfunction` datapack to do the same thing; that
-approach was dropped since it wasn't original work and was ~70x slower than
+approach was dropped since it wasn't original work and was far slower than
 generating spheres directly (a `.mcfunction`-based planet took ~5-6 minutes
-to generate; this takes ~5 seconds).
+to generate; this takes 10-20 seconds even with the much richer strata
+system now in place).
 
 ## Usage
 
@@ -92,16 +97,51 @@ node tools/inspect-schem.js path/to/file.schem
 
 - For the `random` command, the shared block bank simply excludes every
   modded category listed in `blocks/modded.json`.
-- For `template`, any modded block id embedded directly in that template's
-  own `ores`/`stoneLayers` is filtered out too. A template that's *entirely*
-  built around one mod's blocks (like `rocky.modded`) fails with a clear
-  error instead of silently generating something unintended — a mixed
-  template (like `habitable.stem`, mostly vanilla with one modded ore) just
-  drops the modded entries and keeps going.
+- For `template`, any modded block id anywhere in the (nested) template spec
+  is stripped out first, turning it back into "unspecified" — `resolveMaterial`
+  then fills that gap with a random *vanilla* pick same as any other missing
+  field. A template that's entirely built around one mod's blocks (like
+  `rocky.modded`) gracefully degrades into an all-vanilla planet instead of
+  erroring; nothing can become "impossible" to generate anymore.
 
 Currently `blocks/modded.json` covers **Mekanism** and **Immersive
 Engineering** ores (the two mods the original planet set was built around).
 Adding another mod's blocks is just adding a new top-level key.
+
+## Strata (core to surface)
+
+Every planet — `rocky`, `habitable`, or `ring`'s core — is built from the
+same seven concentric zones, as fractions of the total radius:
+
+| Zone | Fraction | Contents |
+|---|---|---|
+| `bedrock` | 3% | A handful of bedrock blocks, the true center |
+| `lava` | 5% | Liquid lava with magma_block patches — a molten shell around the bedrock |
+| `obsidian` | 4% | Solid obsidian, where the lava meets the rock above it |
+| `deep` | 18% | 1 rock + 1 ore. Few veins, but large and compact |
+| `semiDeep` | 18% | 2 rocks (1 main + 1 noise-scattered) + 2 ores. Large veins, loosely spread ("diffuse") |
+| `central` | 18% | 3 rocks (1 main + 2 noise-scattered) + the 3 ores from `deep`+`semiDeep` (smaller, tighter veins) + 3 new ores (same distribution) |
+| `outer` | 34%, the thickest | 3 rocks (1 main + 2 noise-scattered) + only `central`'s 3 new ores, generously |
+
+On `habitable` planets, `outer`'s outermost few blocks are overridden by
+`dirt`/`grass`/`grassAlt` instead (and it's where trees/flowers/herbs and
+passive-mob spawners go). On `rocky`/`ring` planets, `outer` IS the walkable
+surface, and gets raised ore outcrops ("aspérités") — deliberately built
+from `deep`+`semiDeep`'s 3 ores, not `central`/`outer`'s own, so a player
+can't tell what's actually most abundant just by looking at the surface;
+finding that out means digging.
+
+River + underground liquid pockets both use the resolved `liquid` and are
+confined to the `outer` zone.
+
+Every layer's rock/ore fields can be partially specified — `interpreter/
+material.js`'s `resolveMaterial()` fills any gap with a random pick from the
+block bank (see `rocky.modded` in `planet-templates.json`, which ships with
+only 2 of `central`'s 3 ores and no `liquid` on purpose, to demonstrate
+this). `random` generation is exactly this same fill logic starting from an
+empty spec, so every field goes through the bank — including the
+possibility of picking the *same* block or ore twice for one zone, which for
+an ore means it's that much more common there.
 
 ## Ring planets
 
@@ -128,10 +168,13 @@ fragments, not a slab) so it doesn't read as a flat wall.
   — it's immediately available to `random` generation.
 - **New planet preset**: add an entry to the right category's `templates`
   array in `planet-templates.json`. See existing entries for the shape —
-  `stoneLayers` (4 bands, innermost to outermost), `ores` +
-  `oreDensityPerBand`, for `habitable` also `dirt`/`grass`/`grassAlt`,
-  `wood` (`{log, leaves}`), `flower`, `herb`, `liquid`, and for `ring` also
-  `ringBlocks` (exactly 2 ids), `ringOre`, `ringTilt`.
+  `deep`/`semiDeep`/`central`/`outer` (see "Strata" above) and `liquid`,
+  for `habitable` also `dirt`/`grass`/`grassAlt`, `wood` (`{log, leaves}`),
+  `flower`, `herb`, and for `ring` also `ringBlocks` (exactly 2 ids),
+  `ringOre`, `ringTilt`. Any field can be left out entirely — it'll be
+  filled from the bank. For `habitable`'s `flower`/`herb`/`wood`, an
+  *explicit* `null` means "deliberately none" (e.g. no flowers on a nether
+  biome) and is preserved as-is, unlike an absent key.
 
 ## License
 

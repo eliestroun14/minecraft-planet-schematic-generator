@@ -6,7 +6,7 @@ const path = require('path');
 const { generatePlanet } = require('./sphere-generator');
 const { writeSchematic } = require('./schematic-writer');
 const { mulberry32 } = require('./rng');
-const { buildRandomMaterial } = require('./random-material');
+const { resolveMaterial } = require('./material');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -14,20 +14,25 @@ function isModdedId(blockId) {
   return typeof blockId === 'string' && blockId.split(':')[0] !== 'minecraft';
 }
 
-// Deep-filters modded block ids out of a template's own explicit fields
-// (used even when the shared bank isn't touched, since some hardcoded
-// templates embed modded ids directly). Returns null if filtering would
-// leave a template with nothing usable (e.g. a template that's entirely
-// about showcasing one mod's ores).
-function stripModdedFromTemplate(tpl) {
-  const out = { ...tpl };
-  if (Array.isArray(out.ores)) {
-    const filtered = out.ores.filter((o) => !isModdedId(o));
-    if (tpl.ores.length && filtered.length === 0) return null;
-    out.ores = filtered;
+// Recursively strips modded block ids out of a (possibly deeply nested)
+// template spec, turning them back into "unspecified" so resolveMaterial
+// fills the gap with a random VANILLA pick instead. Unlike the old flat
+// schema, no template can become "entirely unusable" anymore — every slot
+// that loses its modded id just gets a vanilla replacement.
+function stripModded(value) {
+  if (typeof value === 'string') return isModdedId(value) ? undefined : value;
+  if (Array.isArray(value)) {
+    return value.map((v) => stripModded(v)).filter((v) => v !== undefined);
   }
-  if (Array.isArray(out.stoneLayers) && out.stoneLayers.some(isModdedId)) return null;
-  return out;
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      const stripped = stripModded(v);
+      if (stripped !== undefined) out[k] = stripped;
+    }
+    return out;
+  }
+  return value;
 }
 
 function loadBlockBank(useModdedBlocks) {
@@ -75,36 +80,39 @@ function resolveOutPath(args, defaultName) {
   return path.join(outDir, defaultName);
 }
 
+function generateAndWrite(category, material, args, outPath) {
+  const seed = args.seed !== undefined ? parseInt(args.seed, 10) : Date.now() & 0xffffffff;
+  const t0 = Date.now();
+  const { world } = generatePlanet({ category, material, radius: args.radius ? parseInt(args.radius, 10) : 130, seed });
+  const info = writeSchematic(world, outPath);
+  console.log(`Wrote ${outPath}: ${info.width}x${info.height}x${info.length}, ${info.paletteSize} block types, ${Date.now() - t0}ms.`);
+}
+
 function cmdTemplate(args) {
   const useModdedBlocks = resolveUseModdedBlocks(args);
+  const bank = loadBlockBank(useModdedBlocks);
   const templates = loadTemplates();
   const cat = templates[args.category];
   if (!cat) throw new Error(`Unknown category: ${args.category}. Available: ${Object.keys(templates).join(', ')}`);
   const tpl = cat.templates.find((t) => t.name === args.template);
   if (!tpl) throw new Error(`Unknown template "${args.template}" for ${args.category}. Available: ${cat.templates.map((t) => t.name).join(', ')}`);
 
-  const material = useModdedBlocks ? tpl : stripModdedFromTemplate(tpl);
-  if (!material) throw new Error(`Template "${args.template}" is entirely modded-block-based; skipped because --use-modded-blocks false.`);
-
   const seed = args.seed !== undefined ? parseInt(args.seed, 10) : Date.now() & 0xffffffff;
+  const spec = useModdedBlocks ? tpl : stripModded(tpl);
+  const material = resolveMaterial(spec, bank, mulberry32(seed ^ 0x51ed270b), args.category);
+
   const outPath = resolveOutPath(args, `${args.category}-${args.template}.schem`);
-  const fallbackLiquids = loadBlockBank(useModdedBlocks).liquid;
-  const t0 = Date.now();
-  const { world } = generatePlanet({ category: args.category, material: { ...material, category: args.category }, radius: args.radius ? parseInt(args.radius, 10) : 90, seed, fallbackLiquids });
-  const info = writeSchematic(world, outPath);
-  console.log(`Wrote ${outPath}: ${info.width}x${info.height}x${info.length}, ${info.paletteSize} block types, ${Date.now() - t0}ms.`);
+  generateAndWrite(args.category, material, { ...args, seed }, outPath);
 }
 
 function cmdRandom(args) {
   const useModdedBlocks = resolveUseModdedBlocks(args);
   const bank = loadBlockBank(useModdedBlocks);
   const seed = args.seed !== undefined ? parseInt(args.seed, 10) : Date.now() & 0xffffffff;
-  const material = buildRandomMaterial(args.category, bank, mulberry32(seed));
+  const material = resolveMaterial({}, bank, mulberry32(seed ^ 0x51ed270b), args.category);
+
   const outPath = resolveOutPath(args, `${args.category}-random-${seed}.schem`);
-  const t0 = Date.now();
-  const { world } = generatePlanet({ category: args.category, material, radius: args.radius ? parseInt(args.radius, 10) : 90, seed: seed ^ 0x9e3779b9, fallbackLiquids: bank.liquid });
-  const info = writeSchematic(world, outPath);
-  console.log(`Wrote ${outPath}: ${info.width}x${info.height}x${info.length}, ${info.paletteSize} block types, ${Date.now() - t0}ms.`);
+  generateAndWrite(args.category, material, { ...args, seed }, outPath);
 }
 
 function main() {
@@ -119,4 +127,4 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { loadBlockBank, loadTemplates, stripModdedFromTemplate };
+module.exports = { loadBlockBank, loadTemplates, stripModded };
